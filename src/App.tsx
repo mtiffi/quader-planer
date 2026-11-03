@@ -23,6 +23,8 @@ export default function App() {
   const [gizmo, setGizmo] = useState<GizmoMode>("translate");
   const [snapCm, setSnapCm] = useState(5);
   const [showLabels, setShowLabels] = useState(true);
+  // List is always visible on desktop; on mobile it starts collapsed to leave room for the editor
+  const [listOpen, setListOpen] = useState(() => window.matchMedia("(min-width: 768px)").matches);
   const [view, setView] = useState<ViewRequest>({ kind: "3d", nonce: 0 });
   const [toast, setToast] = useState<string | null>(null);
 
@@ -170,9 +172,23 @@ export default function App() {
         <div className="space-y-4 p-3">
           <section>
             <div className="mb-1.5 flex items-center justify-between">
-              <h2 className="text-xs font-semibold tracking-wide text-stone-500 uppercase">
+              <button
+                onClick={() => setListOpen((v) => !v)}
+                className="flex items-center gap-1 text-xs font-semibold tracking-wide text-stone-500 uppercase md:pointer-events-none"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  className={`size-4 transition-transform md:hidden ${listOpen ? "rotate-90" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m9 6 6 6-6 6" />
+                </svg>
                 Quader ({boxes.length})
-              </h2>
+              </button>
               <button
                 onClick={addBox}
                 className="rounded-md bg-orange-600 px-2.5 py-1 text-sm font-medium text-white hover:bg-orange-500"
@@ -180,7 +196,7 @@ export default function App() {
                 + Quader
               </button>
             </div>
-            <ul className="space-y-1">
+            <ul className={`space-y-1 ${listOpen ? "" : "hidden md:block"}`}>
               {boxes.map((b, i) => (
                 <li key={b.id}>
                   <button
