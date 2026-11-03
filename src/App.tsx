@@ -66,7 +66,13 @@ export default function App() {
 
   // Keep URL in sync so a reload or copy from the address bar works too
   useEffect(() => {
-    const t = setTimeout(() => window.history.replaceState(null, "", buildShareUrl(boxes)), 300);
+    const t = setTimeout(() => {
+      try {
+        window.history.replaceState(null, "", buildShareUrl(boxes));
+      } catch {
+        // Safari rate-limits replaceState; the next change will try again
+      }
+    }, 500);
     return () => clearTimeout(t);
   }, [boxes]);
 

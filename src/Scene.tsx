@@ -27,11 +27,22 @@ type Props = {
 export default function Scene(props: Props) {
   const lastDragEnd = useRef(0);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [contextLost, setContextLost] = useState(false);
   const labelled = props.showLabels ? props.boxes : [];
   return (
     <div className="relative h-full w-full">
     <Canvas
       shadows
+      // Render only on changes and cap the pixel ratio: continuous 60 fps at DPR 3 got the tab killed on phones
+      frameloop="demand"
+      dpr={[1, 2]}
+      gl={{ powerPreference: "low-power" }}
+      onCreated={({ gl }) => {
+        gl.domElement.addEventListener("webglcontextlost", (e) => {
+          e.preventDefault();
+          setContextLost(true);
+        });
+      }}
       camera={{ position: [3, 2.4, 3.6], fov: 45, near: 0.05, far: 500 }}
       onPointerMissed={() => {
         if (performance.now() - lastDragEnd.current > 250) props.onSelect(null);
@@ -44,7 +55,7 @@ export default function Scene(props: Props) {
         position={[6, 10, 4]}
         intensity={1.6}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-12}
         shadow-camera-right={12}
         shadow-camera-top={12}
@@ -70,8 +81,19 @@ export default function Scene(props: Props) {
       <axesHelper args={[0.4]} position={[0, 0.002, 0]} />
       <SceneContent {...props} lastDragEnd={lastDragEnd} />
       <OrbitControls makeDefault maxPolarAngle={Math.PI / 2 - 0.01} />
-      <LabelProjector boxes={props.boxes} overlay={overlayRef} />
+      <LabelProjector boxes={props.boxes} overlay={overlayRef} visible={props.showLabels} />
     </Canvas>
+      {contextLost && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-stone-200/95 p-6 text-center">
+          <p className="text-sm text-stone-700">Die 3D-Ansicht wurde vom Browser beendet (Grafikspeicher).</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="rounded-md bg-stone-800 px-4 py-2 text-sm font-medium text-white"
+          >
+            Neu laden
+          </button>
+        </div>
+      )}
       <div ref={overlayRef} className="pointer-events-none absolute inset-0 overflow-hidden">
         {labelled.map((box) => {
           const selected = box.id === props.selectedId;
@@ -211,7 +233,18 @@ function BoxMesh({
 }
 
 // Positions the DOM labels above each box every frame (drei <Html> renders empty with React 19)
-function LabelProjector({ boxes, overlay }: { boxes: Box[]; overlay: React.RefObject<HTMLDivElement | null> }) {
+function LabelProjector({
+  boxes,
+  overlay,
+  visible,
+}: {
+  boxes: Box[];
+  overlay: React.RefObject<HTMLDivElement | null>;
+  visible: boolean;
+}) {
+  // frameloop is "demand": newly mounted labels need a frame to get positioned
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => invalidate(), [boxes, visible, invalidate]);
   const boxesRef = useRef(boxes);
   boxesRef.current = boxes;
   const v = useRef(new THREE.Vector3()).current;
@@ -255,6 +288,7 @@ const VIEW_DIRS: Record<ViewKind, THREE.Vector3> = {
 function CameraRig({ view, target }: { view: ViewRequest; target: React.RefObject<THREE.Group | null> }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
+  const invalidate = useThree((s) => s.invalidate);
 
   useEffect(() => {
     if (!controls || !target.current) return;
@@ -272,6 +306,7 @@ function CameraRig({ view, target }: { view: ViewRequest; target: React.RefObjec
     camera.position.copy(sphere.center).addScaledVector(VIEW_DIRS[view.kind], dist);
     controls.target.copy(sphere.center);
     controls.update();
+    invalidate();
     // only react to explicit view requests
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view.nonce, controls]);
