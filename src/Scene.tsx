@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { Edges, Grid, OrbitControls, TransformControls } from "@react-three/drei";
+import { Edges, OrbitControls, TransformControls } from "@react-three/drei";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import type { Box } from "./model";
@@ -23,6 +23,9 @@ type Props = {
   showLabels: boolean;
   view: ViewRequest;
 };
+
+// Phones/tablets: lower resolution, no MSAA, no shadows — a Galaxy Fold kept losing its GPU context
+const LOW_POWER = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 export default function Scene(props: Props) {
   const lastDragEnd = useRef(0);
@@ -54,11 +57,11 @@ export default function Scene(props: Props) {
     <div className="relative h-full w-full">
     <Canvas
       key={canvasKey}
-      shadows
+      shadows={!LOW_POWER}
       // Render only on changes and cap the pixel ratio: continuous 60 fps at DPR 3 got the tab killed on phones
       frameloop="demand"
-      dpr={[1, 2]}
-      gl={{ powerPreference: "low-power" }}
+      dpr={LOW_POWER ? [1, 1.5] : [1, 2]}
+      gl={{ powerPreference: "low-power", antialias: !LOW_POWER }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener("webglcontextlost", (e) => {
           e.preventDefault();
@@ -88,18 +91,9 @@ export default function Scene(props: Props) {
         <planeGeometry args={[200, 200]} />
         <shadowMaterial opacity={0.18} />
       </mesh>
-      <Grid
-        position={[0, 0.001, 0]}
-        infiniteGrid
-        cellSize={0.1}
-        cellThickness={0.6}
-        cellColor="#a8a29e"
-        sectionSize={1}
-        sectionThickness={1.2}
-        sectionColor="#78716c"
-        fadeDistance={40}
-        fadeStrength={1.5}
-      />
+      {/* Plain line grids: far cheaper on mobile GPUs than drei's full-screen <Grid> shader */}
+      <gridHelper args={[20, 200, "#c4c0bc", "#c4c0bc"]} position={[0, 0.001, 0]} />
+      <gridHelper args={[20, 20, "#78716c", "#78716c"]} position={[0, 0.002, 0]} />
       <axesHelper args={[0.4]} position={[0, 0.002, 0]} />
       <SceneContent {...props} lastDragEnd={lastDragEnd} />
       <OrbitControls makeDefault maxPolarAngle={Math.PI / 2 - 0.01} />
@@ -107,7 +101,10 @@ export default function Scene(props: Props) {
     </Canvas>
       {contextLost && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-stone-200/95 p-6 text-center">
-          <p className="text-sm text-stone-700">Die 3D-Ansicht wurde vom Browser beendet (Grafikspeicher).</p>
+          <p className="max-w-sm text-sm text-stone-700">
+            Die 3D-Ansicht wurde vom Browser mehrfach beendet (Grafikspeicher). Andere Tabs mit 3D-Inhalten schließen hilft;
+            blockiert der Browser WebGL danach weiter, ihn einmal komplett neu starten.
+          </p>
           <button
             onClick={() => window.location.reload()}
             className="rounded-md bg-stone-800 px-4 py-2 text-sm font-medium text-white"
