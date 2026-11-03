@@ -3,7 +3,9 @@ import Scene, { type GizmoMode, type ViewKind, type ViewRequest } from "./Scene"
 import {
   PRESET_COLORS,
   buildShareUrl,
+  DEFAULT_SCENE,
   createBox,
+  decodeBoxes,
   readBoxesFromUrl,
   volumeM3,
   type Box,
@@ -12,7 +14,7 @@ import {
 const HISTORY_LIMIT = 200;
 
 function initialBoxes(): Box[] {
-  return readBoxesFromUrl() ?? [createBox()];
+  return readBoxesFromUrl() ?? decodeBoxes(DEFAULT_SCENE);
 }
 
 export default function App() {
@@ -256,10 +258,6 @@ export default function App() {
                 onChange={(v) => setSnapCm(Number(v))}
               />
             </Row>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} />
-              Maße an allen Quadern anzeigen
-            </label>
             <p className="text-xs leading-relaxed text-stone-500">
               Alle Maße in cm. Position = Ecke unten/links/hinten. Länge läuft in X, Breite in Z, Höhe in Y. Rasterlinien:
               10 cm fein, 1 m kräftig. „OK" = Oberkante über Boden.
@@ -298,6 +296,14 @@ export default function App() {
                 {label}
               </button>
             ))}
+            <span className="mx-0.5 w-px bg-stone-300" />
+            <button
+              onClick={() => setShowLabels((v) => !v)}
+              title={showLabels ? "Beschriftungen ausblenden" : "Beschriftungen einblenden"}
+              className={`rounded-md px-2.5 py-1 text-sm ${showLabels ? "bg-stone-800 text-white" : "hover:bg-stone-200"}`}
+            >
+              Maße
+            </button>
           </div>
         </div>
         {toast && (

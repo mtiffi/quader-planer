@@ -27,7 +27,7 @@ type Props = {
 export default function Scene(props: Props) {
   const lastDragEnd = useRef(0);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const labelled = props.boxes.filter((b) => props.showLabels || b.id === props.selectedId);
+  const labelled = props.showLabels ? props.boxes : [];
   return (
     <div className="relative h-full w-full">
     <Canvas

@@ -123,3 +123,7 @@ export function buildShareUrl(boxes: Box[]): string {
 }
 
 export const volumeM3 = (bx: Box) => (bx.l * bx.b * bx.h) / 1_000_000;
+
+// Garden stair base layout (Max, 03.11.2026), shown when the URL has no ?q
+export const DEFAULT_SCENE =
+  "60,100,40,0,0,0,0,9ca3af,Stufe%201~60,100,40,50,40,150,0,9ca3af,Stufe%202~60,100,40,100,80,50,0,9ca3af,Stufe%203~60,100,40,150,120,0,0,9ca3af,Stufe%204~25,100,20,25,40,75,0,9ca3af~25,100,20,75,80,75,0,9ca3af~25,100,20,120,120,75,0,9ca3af~25,100,20,-25,0,75,0,9ca3af~60,100,40,0,0,100,0,9ca3af,Stufe%202~60,50,40,0,0,200,0,9ca3af,Stufe%203~60,50,40,50,40,100,0,9ca3af,Stufe%204~60,100,40,50,40,0,0,9ca3af,Stufe%202~60,50,40,100,80,0,0,9ca3af,Stufe%205~60,100,40,100,80,150,0,9ca3af,Stufe%203~60,100,40,150,120,100,0,9ca3af,Stufe%204~60,50,40,150,120,200,0,9ca3af,Stufe%206";
