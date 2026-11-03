@@ -24,7 +24,7 @@ type Props = {
   view: ViewRequest;
 };
 
-// Phones/tablets: lower resolution, no MSAA, no shadows — a Galaxy Fold kept losing its GPU context
+// Phones/tablets: lower resolution, no shadows — a Galaxy Fold kept losing its GPU context
 const LOW_POWER = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 export default function Scene(props: Props) {
@@ -61,7 +61,7 @@ export default function Scene(props: Props) {
       // Render only on changes and cap the pixel ratio: continuous 60 fps at DPR 3 got the tab killed on phones
       frameloop="demand"
       dpr={LOW_POWER ? [1, 1.5] : [1, 2]}
-      gl={{ powerPreference: "low-power", antialias: !LOW_POWER }}
+      gl={{ powerPreference: "low-power" }}
       onCreated={({ gl }) => {
         gl.domElement.addEventListener("webglcontextlost", (e) => {
           e.preventDefault();
@@ -92,7 +92,9 @@ export default function Scene(props: Props) {
         <shadowMaterial opacity={0.18} />
       </mesh>
       {/* Plain line grids: far cheaper on mobile GPUs than drei's full-screen <Grid> shader */}
-      <gridHelper args={[20, 200, "#c4c0bc", "#c4c0bc"]} position={[0, 0.001, 0]} />
+      <gridHelper args={[20, 200, "#d6d3d1", "#d6d3d1"]} position={[0, 0.001, 0]}>
+        <lineBasicMaterial attach="material" color="#a8a29e" transparent opacity={0.35} />
+      </gridHelper>
       <gridHelper args={[20, 20, "#78716c", "#78716c"]} position={[0, 0.002, 0]} />
       <axesHelper args={[0.4]} position={[0, 0.002, 0]} />
       <SceneContent {...props} lastDragEnd={lastDragEnd} />
