@@ -28,10 +28,32 @@ export default function Scene(props: Props) {
   const lastDragEnd = useRef(0);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [contextLost, setContextLost] = useState(false);
+  const [canvasKey, setCanvasKey] = useState(0);
+  const losses = useRef<number[]>([]);
+
+  // Mobile browsers drop WebGL contexts (e.g. when switching apps). Remount the canvas
+  // with a fresh context instead of dying; only give up if it keeps happening.
+  const onContextLost = () => {
+    const now = Date.now();
+    losses.current = [...losses.current.filter((t) => now - t < 30_000), now];
+    if (losses.current.length > 3) {
+      setContextLost(true);
+      return;
+    }
+    const remount = () => {
+      if (document.hidden) {
+        document.addEventListener("visibilitychange", remount, { once: true });
+        return;
+      }
+      setTimeout(() => setCanvasKey((k) => k + 1), 100);
+    };
+    remount();
+  };
   const labelled = props.showLabels ? props.boxes : [];
   return (
     <div className="relative h-full w-full">
     <Canvas
+      key={canvasKey}
       shadows
       // Render only on changes and cap the pixel ratio: continuous 60 fps at DPR 3 got the tab killed on phones
       frameloop="demand"
@@ -40,7 +62,7 @@ export default function Scene(props: Props) {
       onCreated={({ gl }) => {
         gl.domElement.addEventListener("webglcontextlost", (e) => {
           e.preventDefault();
-          setContextLost(true);
+          onContextLost();
         });
       }}
       camera={{ position: [3, 2.4, 3.6], fov: 45, near: 0.05, far: 500 }}
@@ -203,6 +225,7 @@ function BoxMesh({
   const l = box.l * CM;
   const b = box.b * CM;
   const h = box.h * CM;
+  // Shared unit cube scaled per box: resizing never allocates new GPU geometry
 
   return (
     <group
@@ -212,6 +235,8 @@ function BoxMesh({
     >
       <mesh
         position={[l / 2, h / 2, b / 2]}
+        scale={[l, h, b]}
+        geometry={UNIT_BOX}
         castShadow
         receiveShadow
         onClick={(e: ThreeEvent<MouseEvent>) => {
@@ -219,7 +244,6 @@ function BoxMesh({
           onSelect(box.id);
         }}
       >
-        <boxGeometry args={[l, h, b]} />
         <meshStandardMaterial
           color={box.color}
           roughness={0.85}
@@ -285,13 +309,36 @@ const VIEW_DIRS: Record<ViewKind, THREE.Vector3> = {
   side: new THREE.Vector3(1, 0.0001, 0).normalize(),
 };
 
+const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
+
+// Survives canvas remounts so a recovered context keeps the user's camera
+const cameraMemory = { pos: null as THREE.Vector3 | null, target: new THREE.Vector3(), nonce: -1 };
+
 function CameraRig({ view, target }: { view: ViewRequest; target: React.RefObject<THREE.Group | null> }) {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null;
   const invalidate = useThree((s) => s.invalidate);
 
   useEffect(() => {
+    if (!controls) return;
+    const save = () => {
+      cameraMemory.pos = camera.position.clone();
+      cameraMemory.target.copy(controls.target);
+    };
+    controls.addEventListener("change", save);
+    return () => controls.removeEventListener("change", save);
+  }, [controls, camera]);
+
+  useEffect(() => {
     if (!controls || !target.current) return;
+    if (cameraMemory.pos && cameraMemory.nonce === view.nonce) {
+      camera.position.copy(cameraMemory.pos);
+      controls.target.copy(cameraMemory.target);
+      controls.update();
+      invalidate();
+      return;
+    }
+    cameraMemory.nonce = view.nonce;
     const bbox = new THREE.Box3().setFromObject(target.current);
     const sphere = new THREE.Sphere();
     if (bbox.isEmpty()) {
